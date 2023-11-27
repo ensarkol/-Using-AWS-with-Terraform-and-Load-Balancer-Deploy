@@ -10,15 +10,17 @@ provider "aws" {
 
 Then create the ALB itself using the aws_lb resource:
 
+```
 resource "aws_lb" "example" {
   name               = "terraform-asg-example"
   load_balancer_type = "application"
   subnets            = data.aws_subnets.default.ids
 }
-
+```
 
 Let's quickly add a data reference here to get the subnet information.
 
+```
 data "aws_vpc" "default" {
   default = true
 }
@@ -30,9 +32,11 @@ data "aws_subnets" "default" {
   }
 }
 
+```
 
 The next step is to define a listener for this ALB using the aws_lb_listener resource:
 
+```
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.example.arn
   port              = 80
@@ -49,10 +53,11 @@ resource "aws_lb_listener" "http" {
     }
   }
 }
-
+```
 
 Note that by default, not all AWS resources, including ALBs, allow inbound or outbound traffic, so you need to create a new security group specifically for the ALB. This security group should allow incoming requests to port 80 so that you can access the load balancer over HTTP and outgoing requests to all ports so that the load balancer can perform health checks:
 
+```
 resource "aws_security_group" "alb" {
   name = "terraform-example-alb"
 
@@ -79,9 +84,11 @@ resource "aws_security_group" "alb" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 }
+```
 
 You need to tell the aws_lb resource to use this security group via the security_groups variable:
 
+```
 resource "aws_lb" "example" {
   name               = "terraform-asg-example"
   load_balancer_type = "application"
@@ -105,9 +112,11 @@ resource "aws_lb_target_group" "asg" {
     unhealthy_threshold = 2
   }
 }
+```
 
 This target group will check the status of Instances by periodically sending an HTTP request for each Instance and mark that Instance as healthy only if the Instance returns a response that matches the configured matcher (e.g. 200). If an Instance does not respond because it is corrupted or overloaded, it will be marked as "unhealthy" and the target group will automatically stop sending traffic to it to minimize disruption to your users.How does the target group know which EC2 Instances to send requests to? You can add a static list of EC2 Instances to the target group using the aws_lb_target_group_attachment resource, but with an ASG, Instances can be started or terminated at any time, so a static list will not work. Instead, you can take advantage of a first-class integration between ASG and ALB. Add it to the aws_autoscaling_group resource and set the target_group_arns argument to point to your new target group:
 
+```
 resource "aws_launch_configuration" "example" {
   image_id        = "ami-0e83be366243f524a"
   instance_type   = "t2.micro"
@@ -119,9 +128,9 @@ resource "aws_launch_configuration" "example" {
               nohup busybox httpd -f -p 8080 &
               EOF
 }
+```
 
-
-
+```
 resource "aws_security_group" "alb" {
   name = "terraform-example-alb"
 
@@ -148,10 +157,11 @@ resource "aws_security_group" "alb" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 }
-
+```
 
 Then add the ASG source:
 
+```
 resource "aws_autoscaling_group" "example" {
   launch_configuration = aws_launch_configuration.example.name
   vpc_zone_identifier  = data.aws_subnets.default.ids
@@ -188,13 +198,15 @@ resource "aws_lb_listener_rule" "asg" {
   }
 }
 
+```
 There is one last thing you need to do before deploying the load balancer: Replace the old public_ip output of the only EC2 Instance you had before with an output showing the DNS name of the ALB:
 
+```
 output "alb_dns_name" {
   value       = aws_lb.example.dns_name
   description = "The domain name of the load balancer"
 }
-
+```
 
 Now run terraform init and terraform plan and read the plan command output. You should see that your original single EC2 Instance is removed and in its place Terraform will create a launch configuration, ASG, ALB and a security group. If the plan looks good, type yes and press Enter. When the application is complete, you should see the output alb_dns_name:
 
