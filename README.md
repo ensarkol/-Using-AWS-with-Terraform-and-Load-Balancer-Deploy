@@ -218,3 +218,6 @@ Copy this URL. It takes a few minutes for the EC2 Instances to boot and look hea
 
 
 On the Target Groups page, if you find the Targets tab in the bottom half of the screen, you can see that your Instances have been enrolled in the target group and are undergoing health checks. Wait for the status indicator to show "healthy" for both. This usually takes one to two minutes. Once you see that, go to the alb_dns_name address you copied earlier and test your page
+
+
+Source:https://kerteriz.net/terraform-aws-ve-ec2-load-balancer-deploy/
